@@ -97,6 +97,9 @@ CREATE TABLE IF NOT EXISTS `medical_documents` (
   `doctor_notes` TEXT NULL,
   `diagnosis` TEXT NULL,
   `status` ENUM('VALID', 'EXPIRING_SOON', 'EXPIRED', 'RE_UPLOAD_REQUIRED') NOT NULL DEFAULT 'VALID',
+  `ai_verification_status` VARCHAR(20) NOT NULL DEFAULT 'NOT_RUN',
+  `ai_verification_score` INT NULL,
+  `ai_verification_result` TEXT NULL,
   `uploaded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`uploaded_by`) REFERENCES `users`(`id`) ON DELETE RESTRICT

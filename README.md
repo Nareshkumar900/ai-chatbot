@@ -83,7 +83,11 @@ The **AI Medical Doctor–Patient Management System** is a full-stack clinical p
    - Automatic background service periodically tracks issue dates and review/expiry dates.
    - Document statuses: `VALID`, `EXPIRING_SOON` (<= 30 days), `EXPIRED`, `RE_UPLOAD_REQUIRED`.
    - Automated in-app notifications sent to both patient and doctor.
-6. **AI Medical Assistant**:
+6. **Automated Medical Document Image Screening**:
+   - Uploaded JPEG/PNG medical documents are screened automatically by the configured Claude or Gemini vision API; no administrator approval is required for patient medical documents.
+   - Results are stored separately from expiry status as `AI_APPROVED`, `REJECTED`, or `INCONCLUSIVE` and shown to patients and doctors.
+   - This is a visual content/readability screen, not proof of authenticity or verification against an official medical registry. PDFs and unavailable/uncertain AI results are marked `INCONCLUSIVE`.
+7. **AI Medical Assistant**:
    - ChatGPT-style interactive interface.
    - **Emergency Detection**: Instant red alert banner when acute symptoms are detected (chest pain, shortness of breath, stroke, severe bleeding, anaphylaxis).
    - **Personalized Context**: Ingests patient allergies, chronic conditions, and medications for context-aware queries.
@@ -234,9 +238,11 @@ The system includes pre-seeded accounts for evaluation:
 - `POST /api/patients/:id/records` - Add clinical consultation note.
 
 ### Medical Documents (`/api/medical-documents`)
-- `POST /api/medical-documents` - Upload certificate / lab report.
+- `POST /api/medical-documents` - Upload certificate / lab report and receive its automatic AI image-screening result in `document.aiVerificationStatus`.
 - `GET /api/medical-documents/patient/:patientId` - List patient documents.
 - `GET /api/medical-documents/:id/download` - Securely stream / download document.
+
+AI screening requires `CLAUDE_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY` in `.env`. Images are sent to that configured provider for analysis. Set `CLAUDE_MODEL` to choose the Anthropic vision model. Without a provider key, or for PDF uploads, the document is saved with `INCONCLUSIVE` status; it is not silently approved.
 
 ### Access Requests (`/api/access-requests`)
 - `POST /api/access-requests/search` - Search patient by Medical ID (non-sensitive info only).
@@ -282,6 +288,8 @@ Copy the `.env.example` file to `.env`:
 cp .env.example .env
 ```
 *(By default, `DB_TYPE=sqlite` is active, requiring zero external database configuration).*
+
+To enable automatic medical-document image screening, set one of `CLAUDE_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY` in `.env`. The API key must belong to a vision-capable model provider.
 
 ### Step 3: Run the Application
 ```bash

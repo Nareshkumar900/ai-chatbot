@@ -258,7 +258,8 @@ const DoctorModule = {
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-main); border-radius: var(--radius-md); margin-bottom: 8px;">
               <div>
                 <strong>${d.document_type}</strong> (${d.file_name})<br>
-                <small style="color: var(--text-muted);">Issue: ${d.issue_date} | Review/Expiry: <strong>${d.review_date}</strong></small>
+                <small style="color: var(--text-muted);">Issue: ${d.issue_date} | Review/Expiry: <strong>${d.review_date}</strong></small><br>
+                <small style="color: var(--text-muted);">AI image screening: ${d.ai_verification_status || 'NOT_RUN'}${d.ai_verification_score == null ? '' : ` (${d.ai_verification_score}%)`}</small>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span class="badge ${d.status === 'EXPIRED' ? 'badge-expired' : d.status === 'EXPIRING_SOON' ? 'badge-expiring' : 'badge-valid'}">${d.status}</span>
@@ -527,7 +528,7 @@ Please change your password upon initial login. Keep your Unique Medical ID safe
     try {
       const res = await window.api.postFormData('/medical-documents', formData);
       if (res.success) {
-        App.showAlert('Medical certificate uploaded successfully!', 'success');
+        App.showAlert(res.message || 'Medical certificate uploaded.', res.document && res.document.aiVerificationStatus === 'REJECTED' ? 'warning' : 'success');
         App.closeModal('upload-certificate-modal');
         form.reset();
         await this.loadDashboardData();

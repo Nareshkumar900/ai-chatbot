@@ -23,6 +23,8 @@ const EMERGENCY_PATTERNS = [
   /(seizure|convulsions|foaming\s+at\s+mouth)/i
 ];
 
+const fs = require('fs');
+
 const DISCLAIMER_TEXT = "\n\n---\n*This information is for educational purposes and does not replace professional medical advice. For diagnosis, treatment, or persistent symptoms, please consult a qualified doctor.*";
 
 /**
@@ -135,6 +137,117 @@ async function callGeminiApi(systemPrompt, userPrompt) {
   } catch (err) {
     console.warn('[Gemini API] Request failed, using clinical fallback engine:', err.message);
     return null;
+  }
+}
+
+/**
+ * Screen an uploaded medical document image using the configured vision model.
+ * This is an automated visual screen, not confirmation against an official registry.
+ */
+async function analyzeMedicalDocumentImage({ imagePath, mimeType, documentType }) {
+  if (!['image/jpeg', 'image/png'].includes(mimeType)) {
+    return {
+      status: 'INCONCLUSIVE',
+      score: null,
+      result: { reason: 'Automated screening currently supports JPEG and PNG images only.' }
+    };
+  }
+
+  const apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      status: 'INCONCLUSIVE',
+      score: null,
+      result: { reason: 'Configure an Anthropic or Gemini API key to enable AI image screening.' }
+    };
+  }
+
+  const prompt = `Screen this image as a medical document. The uploader declared its type as: "${documentType}".\nReturn only JSON with these fields: {"is_medical_document": boolean, "matches_declared_type": boolean, "legible": boolean, "looks_suspicious": boolean, "confidence": number, "issues_found": string[]}.\nAssess only visible image evidence: whether it is a medical document, whether its visible content matches the declared type, readability, and obvious visual inconsistencies. Do not claim registry verification, identity verification, or certainty that it is genuine. Do not infer missing text. Use a confidence from 0 to 1.`;
+  const image = fs.readFileSync(imagePath).toString('base64');
+  let responseText = null;
+
+  if (process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY) {
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: process.env.CLAUDE_MODEL || 'claude-sonnet-5-5',
+          max_tokens: 500,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mimeType, data: image } },
+              { type: 'text', text: prompt }
+            ]
+          }]
+        }),
+        signal: AbortSignal.timeout(30000)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        responseText = data.content && data.content.filter(part => part.type === 'text').map(part => part.text).join('\n');
+      } else {
+        console.warn('[Document AI] Anthropic API returned HTTP', response.status);
+      }
+    } catch (err) {
+      console.warn('[Document AI] Anthropic request failed:', err.message);
+    }
+  }
+
+  if (!responseText && process.env.GEMINI_API_KEY) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inline_data: { mime_type: mimeType, data: image } },
+            { text: prompt }
+          ] }],
+          generationConfig: { temperature: 0, maxOutputTokens: 500 }
+        }),
+        signal: AbortSignal.timeout(30000)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        responseText = data.candidates && data.candidates[0] && data.candidates[0].content.parts
+          .map(part => part.text || '').join('\n');
+      } else {
+        console.warn('[Document AI] Gemini API returned HTTP', response.status);
+      }
+    } catch (err) {
+      console.warn('[Document AI] Gemini request failed:', err.message);
+    }
+  }
+
+  try {
+    const jsonText = responseText && responseText.match(/\{[\s\S]*\}/);
+    if (!jsonText) throw new Error('No JSON result from vision provider');
+    const result = JSON.parse(jsonText[0]);
+    const confidence = Number(result.confidence);
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+      throw new Error('Invalid confidence in vision result');
+    }
+
+    let status = 'INCONCLUSIVE';
+    if (confidence >= 0.8 && (result.is_medical_document === false || result.matches_declared_type === false || result.looks_suspicious === true)) {
+      status = 'REJECTED';
+    } else if (result.is_medical_document === true && result.matches_declared_type === true && result.legible === true && result.looks_suspicious === false && confidence >= 0.8) {
+      status = 'AI_APPROVED';
+    }
+
+    return { status, score: Math.round(confidence * 100), result };
+  } catch (err) {
+    return {
+      status: 'INCONCLUSIVE',
+      score: null,
+      result: { reason: 'The AI provider could not return a reliable structured image assessment.' }
+    };
   }
 }
 
@@ -688,6 +801,7 @@ module.exports = {
   detectEmergency,
   processChatMessage,
   analyzeMedicalReport,
+  analyzeMedicalDocumentImage,
   generateDoctorClinicalSummary,
   analyzeDoctorLicenseAuthenticity
 };

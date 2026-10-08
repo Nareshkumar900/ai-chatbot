@@ -209,6 +209,9 @@ async function initDB() {
           doctor_notes TEXT,
           diagnosis TEXT,
           status TEXT NOT NULL DEFAULT 'VALID',
+          ai_verification_status TEXT NOT NULL DEFAULT 'NOT_RUN',
+          ai_verification_score INTEGER,
+          ai_verification_result TEXT,
           uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
           FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE RESTRICT
@@ -315,6 +318,32 @@ async function initDB() {
       console.log('[DB] SQLite seeded successfully.');
     }
     console.log('[DB] SQLite database ready.');
+  }
+
+  if (DB_TYPE === 'mysql') {
+    const [columns] = await mysqlPoolInstance.query('SHOW COLUMNS FROM medical_documents');
+    const existing = new Set(columns.map(column => column.Field));
+    const additions = [
+      ['ai_verification_status', "VARCHAR(20) NOT NULL DEFAULT 'NOT_RUN'"],
+      ['ai_verification_score', 'INT NULL'],
+      ['ai_verification_result', 'TEXT NULL']
+    ];
+    for (const [name, definition] of additions) {
+      if (!existing.has(name)) {
+        await mysqlPoolInstance.query(`ALTER TABLE medical_documents ADD COLUMN ${name} ${definition}`);
+      }
+    }
+  } else {
+    const columns = sqliteDbInstance.exec('PRAGMA table_info(medical_documents)')[0].values.map(column => column[1]);
+    const additions = [
+      ['ai_verification_status', "TEXT NOT NULL DEFAULT 'NOT_RUN'"],
+      ['ai_verification_score', 'INTEGER'],
+      ['ai_verification_result', 'TEXT']
+    ];
+    for (const [name, definition] of additions) {
+      if (!columns.includes(name)) sqliteDbInstance.run(`ALTER TABLE medical_documents ADD COLUMN ${name} ${definition}`);
+    }
+    persistSqlite();
   }
 }
 

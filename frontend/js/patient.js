@@ -153,6 +153,9 @@ const PatientModule = {
         : d.status === 'EXPIRING_SOON'
         ? '<span class="badge badge-expiring">Expiring Soon</span>'
         : '<span class="badge badge-valid">Valid</span>';
+      const aiStatus = d.ai_verification_status || 'NOT_RUN';
+      const aiBadgeClass = aiStatus === 'AI_APPROVED' ? 'badge-valid' : aiStatus === 'REJECTED' ? 'badge-expired' : 'badge-expiring';
+      const aiBadgeLabel = aiStatus === 'AI_APPROVED' ? 'AI screened' : aiStatus === 'REJECTED' ? 'AI flagged' : aiStatus === 'INCONCLUSIVE' ? 'AI inconclusive' : 'Not screened';
 
       return `
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); margin-bottom: 12px; box-shadow: var(--shadow-sm); flex-wrap: wrap; gap: 12px;">
@@ -163,6 +166,7 @@ const PatientModule = {
           </div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             ${badge}
+            <span class="badge ${aiBadgeClass}" title="Automated image screening only; not official registry verification.">${aiBadgeLabel}${d.ai_verification_score == null ? '' : ` (${d.ai_verification_score}%)`}</span>
             <!-- 1. Send selected report to Claude AI & MATLAB Deep Learning -->
             <button class="btn btn-sm btn-primary" onclick="PatientModule.explainReport(${d.id})" title="Explain report terms with Claude AI and evaluate serious situation with MATLAB Deep Learning">
               <i class="fa-solid fa-brain"></i> AI & MATLAB Analysis
@@ -305,7 +309,7 @@ const PatientModule = {
     try {
       const res = await window.api.postFormData('/medical-documents', formData);
       if (res.success) {
-        App.showAlert('Medical document uploaded successfully!', 'success');
+        App.showAlert(res.message || 'Medical document uploaded.', res.document && res.document.aiVerificationStatus === 'REJECTED' ? 'warning' : 'success');
         form.reset();
         App.closeModal('patient-upload-modal');
         await this.loadPatientData();

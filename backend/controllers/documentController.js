@@ -48,6 +48,13 @@ async function uploadDocument(req, res) {
       });
     }
 
+    const { analyzeMedicalDocumentImage } = require('../services/aiService');
+    const aiVerification = await analyzeMedicalDocumentImage({
+      imagePath: path.join(CERT_DIR, req.file.filename),
+      mimeType: req.file.mimetype,
+      documentType
+    });
+
     // Determine initial document status
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -66,8 +73,9 @@ async function uploadDocument(req, res) {
       INSERT INTO medical_documents (
         patient_id, uploaded_by, document_type, file_name, file_path,
         file_size, mime_type, issue_date, review_date, doctor_notes,
-        diagnosis, status, uploaded_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+        diagnosis, status, ai_verification_status, ai_verification_score,
+        ai_verification_result, uploaded_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
     `, [
       patientId,
       req.user.id,
@@ -80,7 +88,10 @@ async function uploadDocument(req, res) {
       reviewDate,
       doctorNotes || '',
       diagnosis || '',
-      status
+      status,
+      aiVerification.status,
+      aiVerification.score,
+      JSON.stringify(aiVerification.result)
     ]);
 
     const docId = result.insertId;
@@ -92,7 +103,7 @@ async function uploadDocument(req, res) {
         VALUES (?, 'NEW_DOCUMENT', 'New Medical Certificate Uploaded', ?, ?, datetime('now', 'localtime'))
       `, [
         patient.user_id,
-        `Dr. ${req.doctor ? req.doctor.name : 'Your Doctor'} uploaded a new ${documentType} (Valid until: ${reviewDate}).`,
+        `Dr. ${req.doctor ? req.doctor.name : 'Your Doctor'} uploaded a new ${documentType}. AI image screening: ${aiVerification.status}.`,
         JSON.stringify({ documentId: docId, patientId })
       ]);
     }
@@ -101,20 +112,23 @@ async function uploadDocument(req, res) {
       userId: req.user.id,
       action: 'CERTIFICATE_UPLOADED',
       patientId: parseInt(patientId, 10),
-      details: `${req.user.role.toUpperCase()} ${req.user.username} uploaded ${documentType} for Patient ${patient.name}`,
+      details: `${req.user.role.toUpperCase()} ${req.user.username} uploaded ${documentType} for Patient ${patient.name}; AI image screening: ${aiVerification.status}`,
       ipAddress: clientIp
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Medical document uploaded successfully.',
+      message: `Medical document uploaded. AI image screening: ${aiVerification.status.replace('_', ' ')}.`,
       document: {
         id: docId,
         fileName: req.file.originalname,
         documentType,
         issueDate,
         reviewDate,
-        status
+        status,
+        aiVerificationStatus: aiVerification.status,
+        aiVerificationScore: aiVerification.score,
+        aiVerificationResult: aiVerification.result
       }
     });
   } catch (err) {
@@ -137,7 +151,8 @@ async function getPatientDocuments(req, res) {
       SELECT 
         d.id, d.patient_id, d.uploaded_by, d.document_type, d.file_name,
         d.file_size, d.mime_type, d.issue_date, d.review_date,
-        d.doctor_notes, d.diagnosis, d.status, d.uploaded_at,
+        d.doctor_notes, d.diagnosis, d.status, d.ai_verification_status,
+        d.ai_verification_score, d.ai_verification_result, d.uploaded_at,
         u.username AS uploaded_by_username, u.role AS uploaded_by_role
       FROM medical_documents d
       JOIN users u ON d.uploaded_by = u.id
