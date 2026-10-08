@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediCare AI | Doctor-Patient Management & Clinical AI Platform</title>
+  <meta name="description" content="Secure Doctor-Patient Management Platform with strict Data Isolation, Consent-Based Access Sharing, Certificate Expiration Tracking, and Clinical AI Assistant.">
+  
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Application Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Global Alert Container -->
+  <div id="global-alert-container" style="position: fixed; top: 20px; right: 24px; z-index: 9999; max-width: 420px; width: 100%;"></div>
+
+  <!-- Global Loader -->
+  <div id="global-loader" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.7); backdrop-filter: blur(4px); z-index: 9998; align-items: center; justify-content: center;">
+    <div style="text-align: center;">
+      <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 40px; color: var(--primary);"></i>
+      <p style="margin-top: 12px; font-weight: 600; color: var(--text-main);">Processing medical request...</p>
+    </div>
+  </div>
+
+  <div class="app-container">
+
+    <!-- =========================================================================
+         SIDEBAR NAVIGATION (Authenticated Dashboards)
+         ========================================================================= -->
+    <aside class="sidebar" id="app-sidebar" style="display: none;">
+      <div class="sidebar-header">
+        <div class="logo-badge"><i class="fa-solid fa-heart-pulse"></i></div>
+        <div class="brand-text">
+          <h2>MediCare AI</h2>
+          <span>Clinical Portal</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <!-- Doctor Navigation Items -->
+        <a class="nav-link nav-role-doctor" data-view="doctor-dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-link nav-role-doctor" data-view="doctor-dashboard" onclick="location.hash='#doctor-dashboard'; document.getElementById('doc-patients-section')?.scrollIntoView({behavior:'smooth'});">
+          <i class="fa-solid fa-users-medical"></i>
+          <span>My Patients</span>
+        </a>
+        <a class="nav-link nav-role-doctor" data-view="doctor-dashboard" onclick="location.hash='#doctor-dashboard'; document.getElementById('doc-new-patient-section')?.scrollIntoView({behavior:'smooth'});">
+          <i class="fa-solid fa-user-plus"></i>
+          <span>Register Patient</span>
+        </a>
+        <a class="nav-link nav-role-doctor" data-view="doctor-dashboard" onclick="location.hash='#doctor-dashboard'; document.getElementById('doc-access-section')?.scrollIntoView({behavior:'smooth'});">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Access Requests</span>
+        </a>
+
+        <!-- Patient Navigation Items -->
+        <a class="nav-link nav-role-patient" data-view="patient-dashboard">
+          <i class="fa-solid fa-house-medical"></i>
+          <span>Health Dashboard</span>
+        </a>
+        <a class="nav-link nav-role-patient" data-view="patient-dashboard" onclick="location.hash='#patient-dashboard'; document.getElementById('pat-history-section')?.scrollIntoView({behavior:'smooth'});">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span>Medical History</span>
+        </a>
+        <a class="nav-link nav-role-patient" data-view="patient-dashboard" onclick="location.hash='#patient-dashboard'; document.getElementById('pat-certs-section')?.scrollIntoView({behavior:'smooth'});">
+          <i class="fa-solid fa-file-medical"></i>
+          <span>Certificates & Reports</span>
+        </a>
+        <a class="nav-link nav-role-patient" data-view="patient-dashboard" onclick="location.hash='#patient-dashboard'; document.getElementById('pat-requests-section')?.scrollIntoView({behavior:'smooth'});">
+          <i class="fa-solid fa-handshake"></i>
+          <span>Doctor Access Requests</span>
+          <span class="nav-badge" id="nav-pending-requests-badge" style="display: none;">0</span>
+        </a>
+
+        <!-- Common AI Assistant Link -->
+        <a class="nav-link" data-view="ai-chat">
+          <i class="fa-solid fa-robot"></i>
+          <span>AI Medical Assistant</span>
+        </a>
+
+        <!-- Admin Navigation Items -->
+        <a class="nav-link nav-role-admin" data-view="admin-dashboard">
+          <i class="fa-solid fa-user-gear"></i>
+          <span>Admin Oversight</span>
+        </a>
+
+        <!-- Informational -->
+        <a class="nav-link" data-view="about">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>About & Security</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-profile-widget">
+          <div class="user-avatar" id="sidebar-user-avatar">D</div>
+          <div class="user-info">
+            <div class="name" id="sidebar-user-name">User Name</div>
+            <div class="role-tag" id="sidebar-user-role">DOCTOR</div>
+          </div>
+          <button class="icon-btn" onclick="Auth.logout()" title="Logout" style="width:32px; height:32px;">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- =========================================================================
+         MAIN APPLICATION AREA
+         ========================================================================= -->
+    <div class="main-content">
+
+      <!-- Top Header (when logged in) -->
+      <header class="top-header" id="dashboard-header">
+        <div class="page-title">
+          <h1>AI Medical Doctor–Patient Management Platform</h1>
+        </div>
+        <div class="header-actions">
+          <!-- Notification Bell -->
+          <div style="position: relative;">
+            <button class="icon-btn" id="btn-notif-toggle" title="Notifications">
+              <i class="fa-regular fa-bell"></i>
+              <span class="badge-dot" id="header-notif-badge" style="display: none;"></span>
+            </button>
+            <div class="notif-dropdown" id="notifications-dropdown">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-light);">
+                <strong>Notifications</strong>
+                <button class="btn btn-sm btn-outline" onclick="App.markAllNotifsRead()" style="padding: 2px 8px; font-size: 0.75rem;">Mark all read</button>
+              </div>
+              <div id="notif-dropdown-list">
+                <p style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">No notifications</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Public Nav links (when logged out) -->
+          <div id="public-nav" style="display: flex; gap: 10px;">
+            <a href="#landing" class="btn btn-outline">Home</a>
+            <a href="#about" class="btn btn-outline">About & Security</a>
+            <a href="#doctor-register" class="btn btn-secondary">Doctor Registration</a>
+            <a href="#login" class="btn btn-primary">Sign In</a>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content Views -->
+      <main class="content-body">
+
+        <!-- =====================================================================
+             VIEW 1: LANDING PAGE
+             ===================================================================== -->
+        <div class="view-container" id="view-landing">
+          <div style="text-align: center; max-width: 860px; margin: 20px auto 40px;">
+            <span class="badge badge-primary-custodian" style="font-size: 0.85rem; padding: 6px 14px; margin-bottom: 16px;">
+              <i class="fa-solid fa-lock"></i> Strict Role-Based Data Isolation & Patient Consent
+            </span>
+            <h1 style="font-size: 2.8rem; line-height: 1.15; margin: 16px 0; color: var(--dark);">
+              AI Medical Doctor–Patient Management System
+            </h1>
+            <p style="font-size: 1.15rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 28px;">
+              A next-generation clinical records platform where <strong>doctors control patient registries</strong>, <strong>patients authorize access via Unique Medical IDs</strong>, and an <strong>ethical AI assistant</strong> delivers symptom evaluations, report explanations, and clinical summaries.
+            </p>
+            <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
+              <a href="#login" class="btn btn-primary" style="padding: 12px 28px; font-size: 1.05rem;">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> Access Portal Login
+              </a>
+              <a href="#doctor-register" class="btn btn-secondary" style="padding: 12px 28px; font-size: 1.05rem;">
+                <i class="fa-solid fa-user-doctor"></i> Doctor Registration
+              </a>
+              <a href="#about" class="btn btn-outline" style="padding: 12px 24px; font-size: 1.05rem;">
+                <i class="fa-solid fa-shield-check"></i> Security Architecture
+              </a>
+            </div>
+          </div>
+
+          <!-- Feature Cards -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 36px;">
+            <div class="card">
+              <div class="stat-icon blue" style="margin-bottom: 16px;"><i class="fa-solid fa-database"></i></div>
+              <h3 style="margin-bottom: 8px;">Strict Data Isolation</h3>
+              <p style="color: var(--text-muted); font-size: 0.92rem;">Doctor A can never view Doctor B's patients or health records without explicit consent. Enforced strictly at the API and database levels.</p>
+            </div>
+            <div class="card">
+              <div class="stat-icon emerald" style="margin-bottom: 16px;"><i class="fa-solid fa-id-card-clip"></i></div>
+              <h3 style="margin-bottom: 8px;">Unique Medical IDs</h3>
+              <p style="color: var(--text-muted); font-size: 0.92rem;">Patients receive unique medical numbers (e.g. <code>MED-IND-2026-8F92K1</code>). Non-custodian doctors must submit access requests for patient approval.</p>
+            </div>
+            <div class="card">
+              <div class="stat-icon amber" style="margin-bottom: 16px;"><i class="fa-solid fa-bell"></i></div>
+              <h3 style="margin-bottom: 8px;">Certificate Expiration Monitor</h3>
+              <p style="color: var(--text-muted); font-size: 0.92rem;">Automatic background service continuously tracks document validity. Sends proactive notifications when medical certificates expire.</p>
+            </div>
+            <div class="card">
+              <div class="stat-icon teal" style="margin-bottom: 16px;"><i class="fa-solid fa-robot"></i></div>
+              <h3 style="margin-bottom: 8px;">AI Clinical Assistant & Chatbot</h3>
+              <p style="color: var(--text-muted); font-size: 0.92rem;">Context-aware health assistant with emergency symptom detection, structured lab report breakdown, and doctor SOAP clinical drafts.</p>
+            </div>
+          </div>
+
+          <!-- Quick 1-Click Demo Testing Credentials Box -->
+          <div class="card" style="border: 2px dashed var(--primary); background: #f0f9ff;">
+            <div class="card-header" style="margin-bottom: 12px;">
+              <h3 style="color: var(--primary-dark); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-key"></i> Quick 1-Click Demo Test Accounts
+              </h3>
+              <span class="badge badge-primary-custodian">Instant Evaluation Ready</span>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">
+              Test the full platform with seeded medical baseline profiles:
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
+              <div style="background: white; padding: 14px; border-radius: var(--radius-md); border: 1px solid #bae6fd;">
+                <strong>Dr. Rajesh Sharma</strong><br>
+                <small style="color: var(--text-muted);">Cardiologist (Apollo Hospital)</small><br>
+                <code style="font-size: 0.8rem;">dr.sharma / Doctor@123</code><br>
+                <button class="btn btn-sm btn-primary" style="margin-top: 8px; width: 100%;" onclick="Auth.quickLogin('dr.sharma', 'Doctor@123')">Login as Dr. Sharma</button>
+              </div>
+              <div style="background: white; padding: 14px; border-radius: var(--radius-md); border: 1px solid #bae6fd;">
+                <strong>Dr. Priya Patel</strong><br>
+                <small style="color: var(--text-muted);">Pulmonologist (Fortis Healthcare)</small><br>
+                <code style="font-size: 0.8rem;">dr.patel / Doctor@123</code><br>
+                <button class="btn btn-sm btn-primary" style="margin-top: 8px; width: 100%;" onclick="Auth.quickLogin('dr.patel', 'Doctor@123')">Login as Dr. Patel</button>
+              </div>
+              <div style="background: white; padding: 14px; border-radius: var(--radius-md); border: 1px solid #bae6fd;">
+                <strong>Patient Rahul Verma</strong><br>
+                <small style="color: var(--text-muted);">Med ID: MED-IND-2026-8F92K1</small><br>
+                <code style="font-size: 0.8rem;">pt.rahul / Patient@123</code><br>
+                <button class="btn btn-sm btn-success" style="margin-top: 8px; width: 100%;" onclick="Auth.quickLogin('pt.rahul', 'Patient@123')">Login as Patient Rahul</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =====================================================================
+             VIEW 2: LOGIN VIEW
+             ===================================================================== -->
+        <div class="view-container" id="view-login" style="display: none;">
+          <div style="max-width: 440px; margin: 40px auto;">
+            <div class="card" style="padding: 36px 32px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <div class="logo-badge" style="margin: 0 auto 12px;"><i class="fa-solid fa-lock"></i></div>
+                <h2>Secure Medical Login</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Sign in to Doctor, Patient, or Admin Portal</p>
+              </div>
+
+              <div id="login-error-msg" class="alert-banner danger" style="display: none; padding: 10px 14px; font-size: 0.85rem;"></div>
+
+              <form id="login-form">
+                <div class="form-group">
+                  <label class="form-label">Portal Selection</label>
+                  <select name="role" class="form-control">
+                    <option value="">Auto-Detect (Doctor / Patient)</option>
+                    <option value="doctor">Doctor Portal</option>
+                    <option value="patient">Patient Portal</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">User ID / Username</label>
+                  <input type="text" name="username" id="login-username" class="form-control" placeholder="e.g. dr.sharma or pt.rahul" required>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Password</label>
+                  <input type="password" name="password" id="login-password" class="form-control" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px; padding: 12px;">Sign In</button>
+              </form>
+
+              <div style="text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--text-muted);">
+                Are you a medical doctor? <a href="#doctor-register" style="color: var(--primary); font-weight: 600;">Register as Doctor</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =====================================================================
+             VIEW 3: DOCTOR REGISTRATION
+             ===================================================================== -->
+        <div class="view-container" id="view-doctor-register" style="display: none;">
+          <div style="max-width: 820px; margin: 20px auto;">
+            <div class="card" style="padding: 36px 40px;">
+              <div style="text-align: center; margin-bottom: 28px;">
+                <div class="logo-badge" style="margin: 0 auto 12px;"><i class="fa-solid fa-user-doctor"></i></div>
+                <h2>Doctor Registration Portal</h2>
+                <p style="color: var(--text-muted); font-size: 0.92rem;">Register your medical credentials to establish a verified practitioner registry.</p>
+              </div>
+
+              <div id="doc-reg-error-msg" class="alert-banner danger" style="display: none;"></div>
+              <div id="doc-reg-success-msg" class="alert-banner info" style="display: none;"></div>
+
+              <form id="doctor-register-form">
+                <h4 style="color: var(--primary-dark); margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
+                  1. Personal & Contact Information
+                </h4>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label">Doctor Full Name *</label>
+                    <input type="text" name="name" class="form-control" placeholder="Dr. Rajesh Sharma" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Date of Birth</label>
+                    <input type="date" name="dob" class="form-control">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Gender</label>
+                    <select name="gender" class="form-control">
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Phone Number *</label>
+                    <input type="tel" name="phone" class="form-control" placeholder="+91 98220 12345" required>
+                  </div>
+                  <div class="form-group col-span-2">
+                    <label class="form-label">Email Address *</label>
+                    <input type="email" name="email" class="form-control" placeholder="dr.sharma@hospital.org" required>
+                  </div>
+                  <div class="form-group col-span-2">
+                    <label class="form-label">Residential / Clinic Address</label>
+                    <input type="text" name="address" class="form-control" placeholder="Sector 14, Noida, UP">
+                  </div>
+                </div>
+
+                <h4 style="color: var(--primary-dark); margin: 24px 0 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
+                  2. Medical Professional & Institutional Credentials
+                </h4>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="form-label">Medical Registration Number (MCI / State Board) *</label>
+                    <input type="text" name="medicalRegistrationNumber" class="form-control" placeholder="MCI-2015-88319" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Specialization / Department *</label>
+                    <input type="text" name="specialization" class="form-control" placeholder="Cardiology / Internal Medicine" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Hospital / Clinic Name *</label>
+                    <input type="text" name="hospital" class="form-control" placeholder="Apollo Multispeciality Hospital" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Hospital Address</label>
+                    <input type="text" name="hospitalAddress" class="form-control" placeholder="Sarita Vihar, New Delhi">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Qualification *</label>
+                    <input type="text" name="qualification" class="form-control" placeholder="MBBS, MD (Medicine), DM" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Years of Experience</label>
+                    <input type="number" name="experience" class="form-control" min="0" placeholder="10">
+                  </div>
+                  <div class="form-group col-span-2">
+                    <label class="form-label">Medical License / Certificate Document (PDF, JPG, PNG)</label>
+                    <input type="file" name="licenseDocument" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                    <small style="color: var(--text-muted);">Upload license proof for administrative verification.</small>
+                  </div>
+                </div>
+
+                <h4 style="color: var(--primary-dark); margin: 24px 0 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
+                  3. Account Credentials
+                </h4>
+                <div class="form-grid">
+                  <div class="form-group col-span-2">
+                    <label class="form-label">Doctor Username / User ID *</label>
+                    <input type="text" name="username" class="form-control" placeholder="dr.sharma" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Password *</label>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Confirm Password *</label>
+                    <input type="password" name="confirmPassword" class="form-control" placeholder="••••••••" required>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px; padding: 14px;">Complete Registration</button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- =====================================================================
+             VIEW 4: DOCTOR DASHBOARD
+             ===================================================================== -->
+        <div class="view-container" id="view-doctor-dashboard" style="display: none;">
+          <!-- Unverified Doctor Alert Banner -->
+          <div id="doc-unverified-banner" class="alert-banner warning" style="display: none;">
+            <div>
+              <strong><i class="fa-solid fa-triangle-exclamation"></i> Medical Registration Pending Administrative Verification:</strong>
+              Your profile is currently under review by the hospital administrator. Patient registration will be unlocked upon license verification.
+            </div>
+          </div>
+
+          <!-- Medical Certificate Expiry Warning Banner -->
+          <div id="doc-certificate-warning-banner" class="alert-banner danger" style="display: none; flex-direction: column; align-items: stretch;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <strong><i class="fa-solid fa-clock-rotate-left"></i> Medical Certificate Expiration Notice</strong>
+              <span class="badge badge-expired">Action Needed</span>
+            </div>
+            <p style="font-size: 0.9rem; margin-bottom: 10px;">The following patient certificates have reached the configured review threshold:</p>
+            <div id="doc-expiring-certs-list"></div>
+          </div>
+
+          <!-- Doctor Welcome Card & Stats -->
+          <div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, #0284c7, #0f766e); color: white;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+              <div>
+                <span class="badge" style="background: rgba(255,255,255,0.2); color: white; margin-bottom: 8px;">Authorized Doctor Registry</span>
+                <h2 style="color: white; font-size: 1.8rem;" id="doc-name-display">Dr. Medical Practitioner</h2>
+                <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem;" id="doc-hospital-display">Apollo Hospital • Cardiology</p>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="document.getElementById('doc-new-patient-section')?.scrollIntoView({behavior:'smooth'})">
+                  <i class="fa-solid fa-user-plus"></i> Register Patient
+                </button>
+                <button class="btn btn-primary" style="background: white; color: var(--primary-dark);" onclick="document.getElementById('doc-access-section')?.scrollIntoView({behavior:'smooth'})">
+                  <i class="fa-solid fa-shield-halved"></i> Request Patient Access
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Statistics Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-doc-total-patients">0</h3>
+                <p>Total Patients</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon emerald"><i class="fa-solid fa-hospital-user"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-doc-primary-patients">0</h3>
+                <p>Registered By You</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon teal"><i class="fa-solid fa-handshake-angle"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-doc-shared-patients">0</h3>
+                <p>Approved Shared Access</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon amber"><i class="fa-solid fa-clock"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-doc-expiring-certs">0</h3>
+                <p>Expiring / Expired Certs</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION: MY PATIENTS -->
+          <div class="card" id="doc-patients-section" style="margin-bottom: 28px;">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">My Authorized Patients List</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem;">Strict Data Isolation: Only displays patients registered by you or explicitly authorized by patient consent.</p>
+              </div>
+              <div style="max-width: 280px; width: 100%;">
+                <input type="text" id="doc-patient-search" class="form-control" placeholder="Search by name, Med ID, blood...">
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Patient Name</th>
+                    <th>Medical ID</th>
+                    <th>Blood</th>
+                    <th>Access Relationship</th>
+                    <th>Certificate Status</th>
+                    <th>Last Visit</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="doc-patients-tbody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SECTION: ACCESS REQUEST TO ANOTHER DOCTOR'S PATIENT -->
+          <div class="card" id="doc-access-section" style="margin-bottom: 28px;">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i> Request Access to a Patient (via Unique Medical ID)</h3>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Doctor B can enter Patient X's unique Medical ID to submit an access request. Medical records will NOT be visible until Patient X explicitly approves.</p>
+              </div>
+            </div>
+
+            <form id="doc-access-search-form" style="display: flex; gap: 12px; max-width: 600px; margin-bottom: 16px;">
+              <input type="text" name="medicalId" class="form-control" placeholder="e.g. MED-IND-2026-8F92K1" style="font-family: monospace; font-weight: 700;" required>
+              <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
+                <i class="fa-solid fa-magnifying-glass"></i> Identify Patient
+              </button>
+            </form>
+
+            <!-- Patient Preview & Request Reason Box -->
+            <div id="doc-access-patient-preview" style="display: none; padding: 20px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: var(--radius-md); margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                  <h4 style="font-size: 1.15rem; color: var(--primary-dark);" id="doc-access-preview-name">Patient Name</h4>
+                  <p style="font-size: 0.88rem; color: var(--text-muted);" id="doc-access-preview-demographics">Male, 38 years | Blood: B+</p>
+                  <small style="color: var(--text-subtle);" id="doc-access-preview-hospital">Registered at Apollo Hospital</small>
+                </div>
+                <code style="font-size: 1.1rem; color: var(--primary-dark); font-weight: 800;" id="doc-access-preview-id">MED-IND-2026-8F92K1</code>
+              </div>
+
+              <div id="doc-access-submit-card">
+                <form id="doc-access-submit-form">
+                  <input type="hidden" id="doc-access-target-patient-id">
+                  <div class="form-group">
+                    <label class="form-label">Clinical Reason for Access *</label>
+                    <textarea name="reason" class="form-control" rows="2" placeholder="e.g. Second opinion regarding cardiovascular clearance and respiratory symptoms." required></textarea>
+                  </div>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-paper-plane"></i> Send Access Request to Patient
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- List of Sent Requests -->
+            <h4 style="font-size: 0.95rem; color: var(--text-muted); margin: 18px 0 10px; text-transform: uppercase; letter-spacing: 0.05em;">
+              Access Requests Sent By You
+            </h4>
+            <div id="doc-access-requests-list">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- SECTION: REGISTER NEW PATIENT -->
+          <div class="card" id="doc-new-patient-section">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-user-plus" style="color:var(--primary);"></i> Register New Patient</h3>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Only verified medical practitioners can enroll patients. System auto-generates Unique Patient Medical ID, User ID, and Temporary Password.</p>
+              </div>
+            </div>
+
+            <form id="doctor-new-patient-form">
+              <h4 style="color: var(--primary-dark); margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 4px;">
+                1. Personal Demographics
+              </h4>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Full Name *</label>
+                  <input type="text" name="name" class="form-control" placeholder="Rahul Verma" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Date of Birth *</label>
+                  <input type="date" name="dob" class="form-control" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Gender *</label>
+                  <select name="gender" class="form-control" required>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Blood Group *</label>
+                  <select name="bloodGroup" class="form-control" required>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Phone Number *</label>
+                  <input type="tel" name="phone" class="form-control" placeholder="+91 99111 22334" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Email Address *</label>
+                  <input type="email" name="email" class="form-control" placeholder="patient@example.com" required>
+                </div>
+                <div class="form-group col-span-2">
+                  <label class="form-label">Emergency Contact (Name & Relationship & Phone) *</label>
+                  <input type="text" name="emergencyContact" class="form-control" placeholder="Pooja Verma (Spouse) - +91 99111 22335" required>
+                </div>
+                <div class="form-group col-span-2">
+                  <label class="form-label">Residential Address</label>
+                  <input type="text" name="address" class="form-control" placeholder="Green Park Apartments, New Delhi">
+                </div>
+              </div>
+
+              <h4 style="color: var(--primary-dark); margin: 24px 0 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 4px;">
+                2. Medical History & Background
+              </h4>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Existing Chronic Diseases</label>
+                  <input type="text" name="existingDiseases" class="form-control" placeholder="Hypertension, Asthma, Diabetes">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Known Allergies (⚠️ High Priority)</label>
+                  <input type="text" name="allergies" class="form-control" placeholder="Penicillin, Sulfa drugs, Shellfish">
+                </div>
+                <div class="form-group col-span-2">
+                  <label class="form-label">Current Medications</label>
+                  <input type="text" name="currentMedications" class="form-control" placeholder="Amlodipine 5mg OD, Salbutamol Inhaler PRN">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Previous Surgeries</label>
+                  <input type="text" name="previousSurgeries" class="form-control" placeholder="Appendectomy (2018)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Family Medical History</label>
+                  <input type="text" name="familyMedicalHistory" class="form-control" placeholder="Father: CAD, Mother: Diabetes">
+                </div>
+                <div class="form-group col-span-2">
+                  <label class="form-label">Important Clinical Notes / Conditions</label>
+                  <textarea name="importantConditions" class="form-control" rows="2" placeholder="Weekly blood pressure monitoring recommended."></textarea>
+                </div>
+              </div>
+
+              <h4 style="color: var(--primary-dark); margin: 24px 0 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 4px;">
+                3. Medical Certificate & Baseline Consultation (Optional)
+              </h4>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Certificate / Document Type</label>
+                  <input type="text" name="certificateType" class="form-control" placeholder="Medical Fitness Certificate / Health Report">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Certificate File (PDF, JPG, PNG)</label>
+                  <input type="file" name="certificateFile" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Issue Date</label>
+                  <input type="date" name="issueDate" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Review / Expiry Date</label>
+                  <input type="date" name="reviewDate" class="form-control">
+                </div>
+                <div class="form-group col-span-2">
+                  <label class="form-label">Initial Diagnosis Notes</label>
+                  <textarea name="diagnosis" class="form-control" rows="2" placeholder="Baseline clinical review and vitals recorded."></textarea>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px; padding: 14px;">
+                Register Patient & Auto-Generate Medical Credentials
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- =====================================================================
+             VIEW 5: PATIENT DASHBOARD
+             ===================================================================== -->
+        <div class="view-container" id="view-patient-dashboard" style="display: none;">
+          <!-- Medical Certificate Warning Banner -->
+          <div id="patient-cert-warning-banner" class="alert-banner warning" style="display: none;">
+            <div id="patient-cert-warning-text"></div>
+            <button class="btn btn-sm btn-primary" onclick="App.openModal('patient-upload-modal')">Upload Renewal</button>
+          </div>
+
+          <!-- Patient Unique Medical ID Card -->
+          <div class="medical-id-card">
+            <div>
+              <h4>Your Patient Medical Access ID</h4>
+              <div class="medical-id-code" id="pat-med-id-display">MED-IND-2026-XXXXXX</div>
+              <p style="font-size: 0.85rem; opacity: 0.9;">Share this Medical ID with external doctors to allow them to request access to your records.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="PatientModule.copyMedicalId()" style="background: white; color: var(--primary-dark); font-weight: 700;">
+              <i class="fa-solid fa-copy"></i> Copy Medical ID
+            </button>
+          </div>
+
+          <!-- Health Profile Highlights -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon red"><i class="fa-solid fa-droplet"></i></div>
+              <div class="stat-details">
+                <h3 id="pat-blood-display">O+</h3>
+                <p>Blood Group</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fa-solid fa-user"></i></div>
+              <div class="stat-details">
+                <h3 id="pat-age-gender-display">Adult</h3>
+                <p>Age & Gender</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon emerald"><i class="fa-solid fa-user-doctor"></i></div>
+              <div class="stat-details">
+                <h3 style="font-size: 1.1rem; line-height: 1.2;" id="pat-custodian-display">Dr. Sharma</h3>
+                <p>Primary Doctor</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon amber"><i class="fa-solid fa-phone"></i></div>
+              <div class="stat-details">
+                <h3 style="font-size: 0.95rem; line-height: 1.2;" id="pat-emergency-display">Spouse</h3>
+                <p>Emergency Contact</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Health Background Cards -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 28px;">
+            <div class="card">
+              <h3 style="font-size: 1.1rem; color: var(--primary-dark); margin-bottom: 12px;">
+                <i class="fa-solid fa-heart-pulse"></i> Chronic Medical Conditions
+              </h3>
+              <p id="pat-diseases-display" style="font-size: 0.95rem; color: var(--text-main); font-weight: 600;">None</p>
+            </div>
+            <div class="card">
+              <h3 style="font-size: 1.1rem; color: var(--danger-dark); margin-bottom: 12px;">
+                <i class="fa-solid fa-shield-virus"></i> Known Drug Allergies
+              </h3>
+              <span id="pat-allergies-display" class="badge badge-valid">None</span>
+            </div>
+            <div class="card">
+              <h3 style="font-size: 1.1rem; color: var(--secondary-dark); margin-bottom: 12px;">
+                <i class="fa-solid fa-pills"></i> Current Active Medications
+              </h3>
+              <p id="pat-meds-display" style="font-size: 0.95rem; color: var(--text-main); font-weight: 600;">None</p>
+            </div>
+          </div>
+
+          <!-- SECTION: DOCTOR ACCESS REQUESTS (CONSENT SHARING) -->
+          <div class="card" id="pat-requests-section" style="margin-bottom: 28px;">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-handshake" style="color:var(--primary);"></i> Doctor Access Requests (Your Data Consent)</h3>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Doctors who want to view your medical history must receive your explicit approval. You can approve, reject, or revoke access at any time.</p>
+              </div>
+            </div>
+
+            <!-- Pending Requests -->
+            <h4 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase;">
+              Pending Requests Requiring Your Decision
+            </h4>
+            <div id="pat-pending-requests-container" style="margin-bottom: 20px;">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <!-- Approved Doctors with Shared Access -->
+            <h4 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase;">
+              Currently Authorized Doctors (Active Consent)
+            </h4>
+            <div id="pat-approved-doctors-container">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- SECTION: MEDICAL CERTIFICATES & REPORTS -->
+          <div class="card" id="pat-certs-section" style="margin-bottom: 28px;">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-file-medical" style="color:var(--primary);"></i> Medical Certificates & Diagnostic Reports</h3>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Track validity dates and download copies of your official medical documents.</p>
+              </div>
+              <button class="btn btn-primary" onclick="App.openModal('patient-upload-modal')">
+                <i class="fa-solid fa-file-arrow-up"></i> Upload Document
+              </button>
+            </div>
+
+            <div id="pat-docs-container">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- SECTION: MEDICAL HISTORY TIMELINE -->
+          <div class="card" id="pat-history-section">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-stethoscope" style="color:var(--primary);"></i> Chronological Medical Consultations</h3>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Doctor visit summaries, diagnosis notes, vital signs, and prescriptions.</p>
+              </div>
+            </div>
+
+            <div id="pat-timeline-container">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- =====================================================================
+             VIEW 6: AI MEDICAL CHATBOT & CLINICAL INTELLIGENCE
+             ===================================================================== -->
+        <div class="view-container" id="view-ai-chat" style="display: none;">
+          <div class="chat-wrapper">
+            <!-- Modern ChatGPT-style Chat Header -->
+            <div class="chat-header">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <div class="chat-avatar-header" id="chat-header-avatar">
+                  <i class="fa-solid fa-brain"></i>
+                </div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <h3 id="chat-header-title" style="font-size: 1.15rem; font-weight: 700; line-height: 1.2; margin: 0;">AI Health Companion</h3>
+                    <span class="badge" id="chat-live-emotion-badge" style="display: none; font-size: 0.76rem; background: #eff6ff; color: #0284c7; border: 1px solid #bfdbfe; padding: 3px 9px; border-radius: 9999px;">
+                      <i class="fa-solid fa-heart-pulse"></i> <span id="chat-live-emotion-text">Emotion Engine Active</span>
+                    </span>
+                  </div>
+                  <small id="chat-header-subtitle" style="color: var(--text-muted); font-size: 0.82rem;">
+                    <i class="fa-solid fa-circle" style="color: #10b981; font-size: 8px;"></i> Powered by Claude AI & MATLAB Affective Empathy Engine
+                  </small>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="btn btn-sm btn-outline" onclick="ChatModule.startNewChat()" title="Start a fresh conversation" id="chat-new-btn">
+                  <i class="fa-solid fa-plus"></i> New Chat
+                </button>
+                <button class="btn btn-sm btn-outline" onclick="App.openModal('report-analysis-modal')" title="Analyze uploaded or pasted medical report">
+                  <i class="fa-solid fa-file-waveform"></i> Analyze Report & MATLAB Risk
+                </button>
+              </div>
+            </div>
+
+            <!-- Emergency Banner if detected -->
+            <div id="chat-emergency-banner" class="emergency-box" style="display: none; margin: 16px 24px 0;"></div>
+
+            <!-- Messages Area -->
+            <div class="chat-messages" id="chat-messages-container">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Modern ChatGPT Input Area -->
+            <div class="chat-input-area">
+              <form id="chat-form" class="chat-form-modern">
+                <div class="chat-input-box-wrapper">
+                  <textarea name="message" id="chat-input-field" class="chat-textarea" placeholder="Message your AI Health Companion... (Press Enter to send, Shift+Enter for new line)" rows="1" required></textarea>
+                  <button type="submit" id="chat-send-btn" class="chat-send-btn" title="Send message">
+                    <i class="fa-solid fa-arrow-up"></i>
+                  </button>
+                </div>
+              </form>
+              <div class="chat-footer-disclaimer">
+                <span>Claude AI & MATLAB Affective Computing provide educational health support. Consult a licensed physician for medical diagnosis or prescription.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =====================================================================
+             VIEW 7: ADMIN DASHBOARD
+             ===================================================================== -->
+        <div class="view-container" id="view-admin-dashboard" style="display: none;">
+          <div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, #0f172a, #1e293b); color: white;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+              <div>
+                <span class="badge" style="background: rgba(2, 132, 199, 0.3); color: #38bdf8; margin-bottom: 8px;">
+                  <i class="fa-solid fa-shield-halved"></i> Hospital Administrator Oversight
+                </span>
+                <h2 style="color: white; font-size: 1.8rem;">Doctor License Verification & Patient Registry Center</h2>
+                <p style="color: #94a3b8; font-size: 0.95rem; margin-top: 4px;">
+                  Automated AI Forensic Verification of Doctor Licenses (Real vs Fake Detection) & System-Wide Patient Registry Oversight.
+                </p>
+              </div>
+              <div style="background: rgba(255,255,255,0.08); padding: 12px 18px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.12);">
+                <small style="color: #cbd5e1; display: block;">Administrator Identity</small>
+                <code style="color: #38bdf8; font-size: 0.85rem;">administator_aiml_project_for_helth</code>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admin Stats -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fa-solid fa-user-doctor"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-admin-total-docs">0</h3>
+                <p>Total Doctors</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon emerald"><i class="fa-solid fa-circle-check"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-admin-verified-docs">0</h3>
+                <p>Verified Doctors</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon amber"><i class="fa-solid fa-hourglass-start"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-admin-pending-docs">0</h3>
+                <p>Pending Verification</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon teal"><i class="fa-solid fa-hospital-user"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-admin-total-patients">0</h3>
+                <p>Total Patients</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fa-solid fa-file-medical"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-admin-total-records">0</h3>
+                <p>Consultations</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon emerald"><i class="fa-solid fa-file-pdf"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-admin-total-docs-count">0</h3>
+                <p>Certificates</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon red"><i class="fa-solid fa-clock"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-admin-expiring-certs">0</h3>
+                <p>Expired Certs</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon amber"><i class="fa-solid fa-shield-virus"></i></div>
+              <div class="stat-details">
+                <h3 id="stat-admin-audit-events">0</h3>
+                <p>Audit Events</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 1: Doctor Verification & AI Authenticity Analysis Table -->
+          <div class="card" style="margin-bottom: 28px;">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-user-doctor" style="color:var(--primary);"></i> Doctor Registrations & AI License Authenticity Analysis</h3>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">
+                  Use AI Forensics to analyze uploaded medical license documents, evaluate national council syntax, check qualification plausibility, and detect potentially fake or fabricated registrations.
+                </p>
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Doctor Name & Qualification</th>
+                    <th>Department / Specialization</th>
+                    <th>Hospital Affiliation</th>
+                    <th>Registration No</th>
+                    <th>Experience</th>
+                    <th>License Status</th>
+                    <th>AI Forensic Analysis & Decisions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-doctors-tbody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Section 2: Patient Registrations Oversight Table -->
+          <div class="card" style="margin-bottom: 28px;">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-hospital-user" style="color:var(--secondary);"></i> Patient Registrations Oversight</h3>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">
+                  System-wide patient registry view with primary custodian doctor affiliations and unique Medical IDs.
+                </p>
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Patient Name & Demographics</th>
+                    <th>Unique Medical ID</th>
+                    <th>Blood Group</th>
+                    <th>Registered By (Primary Custodian)</th>
+                    <th>Email Contact</th>
+                    <th>Enrolled Date</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-patients-tbody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Section 3: Security Audit Logs Table -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title"><i class="fa-solid fa-fingerprint" style="color:var(--dark);"></i> Security & Access Audit Trail (Tamper-Resistant Log)</h3>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Live audit logs capturing doctor logins, unauthorized cross-access blocks, patient consent approvals, and AI audits.</p>
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Security Action</th>
+                    <th>User</th>
+                    <th>Event Details</th>
+                    <th>IP Address</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-audit-tbody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- =====================================================================
+             VIEW 8: ABOUT & SECURITY ARCHITECTURE
+             ===================================================================== -->
+        <div class="view-container" id="view-about" style="display: none;">
+          <div style="max-width: 880px; margin: 20px auto;">
+            <div class="card" style="padding: 36px 40px;">
+              <h2 style="color: var(--primary-dark); margin-bottom: 16px;">System Architecture & Medical Data Isolation</h2>
+              <p style="color: var(--text-muted); line-height: 1.7; margin-bottom: 24px;">
+                The <strong>AI Medical Doctor–Patient Management System</strong> is engineered to meet rigorous healthcare data governance standards, addressing unauthorized cross-doctor access, data custodianship, and safe AI assistance.
+              </p>
+
+              <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                <div style="background: var(--bg-main); padding: 18px; border-radius: var(--radius-md);">
+                  <h4 style="color: var(--primary-dark); margin-bottom: 8px;"><i class="fa-solid fa-lock"></i> Strict Doctor Data Isolation</h4>
+                  <p style="font-size: 0.9rem; color: var(--text-muted);">
+                    A doctor can only view records for patients they directly registered or for whom the patient has granted explicit consent. Any unauthorized attempt triggers an immediate <code>403 Forbidden</code> and is flagged in the security audit log.
+                  </p>
+                </div>
+                <div style="background: var(--bg-main); padding: 18px; border-radius: var(--radius-md);">
+                  <h4 style="color: var(--secondary-dark); margin-bottom: 8px;"><i class="fa-solid fa-id-card"></i> Unique Patient Medical IDs</h4>
+                  <p style="font-size: 0.9rem; color: var(--text-muted);">
+                    Government identifiers (e.g. Aadhaar, SSN) are never exposed. Instead, cryptographically randomized Medical IDs (e.g. <code>MED-IND-2026-8F92K1</code>) are used for consent-based access requests.
+                  </p>
+                </div>
+                <div style="background: var(--bg-main); padding: 18px; border-radius: var(--radius-md);">
+                  <h4 style="color: var(--warning-dark); margin-bottom: 8px;"><i class="fa-solid fa-bell"></i> Expiration Monitoring Engine</h4>
+                  <p style="font-size: 0.9rem; color: var(--text-muted);">
+                    An automated background process periodically evaluates certificates against review dates, sending proactive in-app notifications to both the patient and their attending physician.
+                  </p>
+                </div>
+                <div style="background: var(--bg-main); padding: 18px; border-radius: var(--radius-md);">
+                  <h4 style="color: var(--accent); margin-bottom: 8px;"><i class="fa-solid fa-user-shield"></i> Medical AI Safety Guardrails</h4>
+                  <p style="font-size: 0.9rem; color: var(--text-muted);">
+                    The AI Assistant detects emergency situations immediately, enforces medical disclaimers, never claims to be a doctor, and never prescribes medication without licensed physician validation.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODALS
+       ========================================================================= -->
+
+  <!-- Modal 1: Patient Details Modal -->
+  <div class="modal-backdrop" id="patient-details-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 780px;">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-patient-name" style="font-size: 1.35rem; color: var(--primary-dark);">Patient Details</h3>
+          <code id="modal-patient-medid" style="font-size: 0.95rem; color: var(--text-muted);">MED-IND-2026-XXXXXX</code>
+        </div>
+        <button class="close-btn" onclick="App.closeModal('patient-details-modal')">&times;</button>
+      </div>
+
+      <!-- Demographics -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; background: var(--bg-main); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
+        <div>
+          <small style="color: var(--text-muted); display: block;">Age & Gender</small>
+          <strong id="modal-patient-age-gender">Male, 38 yrs</strong>
+        </div>
+        <div>
+          <small style="color: var(--text-muted); display: block;">Blood Group</small>
+          <strong id="modal-patient-blood">B+</strong>
+        </div>
+        <div>
+          <small style="color: var(--text-muted); display: block;">Contact Phone</small>
+          <strong id="modal-patient-phone">+91 99111 22334</strong>
+        </div>
+        <div>
+          <small style="color: var(--text-muted); display: block;">Emergency Contact</small>
+          <strong id="modal-patient-emergency">Spouse</strong>
+        </div>
+      </div>
+
+      <!-- Clinical Background -->
+      <div style="margin-bottom: 20px;">
+        <h4 style="color: var(--dark); margin-bottom: 8px;">Clinical Background & Allergies</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div><small style="color: var(--text-muted);">Chronic Conditions:</small> <span id="modal-patient-diseases">None</span></div>
+          <div><small style="color: var(--text-muted);">Allergies:</small> <span id="modal-patient-allergies" class="badge badge-expired">None</span></div>
+          <div><small style="color: var(--text-muted);">Medications:</small> <span id="modal-patient-meds">None</span></div>
+          <div><small style="color: var(--text-muted);">Surgeries:</small> <span id="modal-patient-surgeries">None</span></div>
+          <div style="grid-column: span 2;"><small style="color: var(--text-muted);">Family History:</small> <span id="modal-patient-family">None</span></div>
+          <div style="grid-column: span 2;"><small style="color: var(--text-muted);">Address:</small> <span id="modal-patient-address">None</span></div>
+        </div>
+      </div>
+
+      <!-- AI Clinical Copilot Generator Button -->
+      <div style="margin-bottom: 20px; padding: 14px 18px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <strong style="color: #166534;"><i class="fa-solid fa-wand-magic-sparkles"></i> Doctor AI Clinical Copilot</strong>
+          <p style="font-size: 0.82rem; color: #15803d;">Generate structured SOAP notes and chronological summary from recorded history.</p>
+        </div>
+        <button id="btn-doc-ai-summary" class="btn btn-sm btn-success" onclick="DoctorModule.generateAiClinicalSummary()">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI SOAP Summary
+        </button>
+      </div>
+
+      <!-- AI SOAP Note Box -->
+      <div id="doctor-ai-soap-box" style="display: none; padding: 18px; background: white; border: 1px solid var(--border-light); border-radius: var(--radius-md); margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+        <h4 style="color: var(--primary-dark); margin-bottom: 8px;">AI Clinical Copilot Draft:</h4>
+        <div id="doctor-ai-soap-content" style="font-size: 0.92rem; line-height: 1.6;"></div>
+      </div>
+
+      <!-- Chronological Consultations -->
+      <h4 style="color: var(--dark); margin-bottom: 10px;">Chronological Consultation History</h4>
+      <div id="modal-patient-records-timeline" style="margin-bottom: 24px;"></div>
+
+      <!-- Medical Documents -->
+      <h4 style="color: var(--dark); margin-bottom: 10px;">Medical Certificates & Documents</h4>
+      <div id="modal-patient-docs-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Patient Generated Credentials Card -->
+  <div class="modal-backdrop" id="patient-credentials-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 520px; text-align: center;">
+      <div class="logo-badge" style="margin: 0 auto 12px; background: linear-gradient(135deg, var(--accent), #059669);"><i class="fa-solid fa-check"></i></div>
+      <h3 style="color: var(--dark); margin-bottom: 6px;">Patient Enrolled Successfully</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+        Provide these login credentials and Medical ID to the patient:
+      </p>
+
+      <div style="background: var(--bg-main); border: 2px dashed var(--primary); padding: 20px; border-radius: var(--radius-md); text-align: left; margin-bottom: 20px; font-size: 0.95rem;">
+        <div style="margin-bottom: 8px;"><strong>Patient Name:</strong> <span id="cred-patient-name">Name</span></div>
+        <div style="margin-bottom: 8px;"><strong>Unique Medical ID:</strong> <code id="cred-medical-id" style="font-size:1.15rem; font-weight:800; color:var(--primary);">MED-IND-2026-XXXXXX</code></div>
+        <div style="margin-bottom: 8px;"><strong>Username:</strong> <code id="cred-username">pt.123456</code></div>
+        <div style="margin-bottom: 8px;"><strong>Temporary Password:</strong> <code id="cred-temp-pass">Med@7382!</code></div>
+        <div style="margin-bottom: 8px;"><strong>Registered Email:</strong> <span id="cred-email">email</span></div>
+        <div><strong>Primary Doctor:</strong> <span id="cred-doctor-name">Dr. Sharma</span></div>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn btn-secondary" onclick="DoctorModule.copyCredentials()">
+          <i class="fa-solid fa-copy"></i> Copy Credentials Slip
+        </button>
+        <button class="btn btn-primary" onclick="App.closeModal('patient-credentials-modal')">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Add Consultation Record Modal -->
+  <div class="modal-backdrop" id="add-consultation-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <div>
+          <h3>Log Medical Consultation</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;" id="record-patient-name-display">Patient Name</p>
+        </div>
+        <button class="close-btn" onclick="App.closeModal('add-consultation-modal')">&times;</button>
+      </div>
+
+      <form id="doc-new-record-form">
+        <input type="hidden" id="record-patient-id">
+        <div class="form-group">
+          <label class="form-label">Consultation / Record Type</label>
+          <select name="recordType" class="form-control">
+            <option value="Routine Consultation">Routine Consultation</option>
+            <option value="Follow-up Review">Follow-up Review</option>
+            <option value="Cardiology Clearance">Cardiology Clearance</option>
+            <option value="Prescription Refill">Prescription Refill</option>
+            <option value="Diagnostic Evaluation">Diagnostic Evaluation</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Diagnosis & Clinical Examination Notes *</label>
+          <textarea name="diagnosisNotes" class="form-control" rows="3" placeholder="Clinical findings, auscultation, symptoms presented..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Vital Signs Recorded</label>
+          <input type="text" name="vitalSigns" class="form-control" placeholder="BP: 120/80 mmHg, Pulse: 72 bpm, SpO2: 99%, Weight: 74kg">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prescription & Medications</label>
+          <textarea name="medications" class="form-control" rows="2" placeholder="Medication dosage and frequency..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Treatment Plan & Follow-up Instructions</label>
+          <input type="text" name="treatmentPlan" class="form-control" placeholder="Review in 3 months; lifestyle modification">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Save Consultation Record</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 4: Doctor Upload Certificate Modal -->
+  <div class="modal-backdrop" id="upload-certificate-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 550px;">
+      <div class="modal-header">
+        <div>
+          <h3>Upload Medical Certificate</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;" id="upload-cert-patient-name-display">Patient Name</p>
+        </div>
+        <button class="close-btn" onclick="App.closeModal('upload-certificate-modal')">&times;</button>
+      </div>
+
+      <form id="doc-upload-cert-form">
+        <input type="hidden" name="patientId" id="upload-cert-patient-id">
+        <div class="form-group">
+          <label class="form-label">Certificate / Report Type *</label>
+          <input type="text" name="documentType" class="form-control" placeholder="Medical Fitness Certificate / Blood Report" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Document File (PDF, JPG, PNG) *</label>
+          <input type="file" name="documentFile" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Issue Date *</label>
+            <input type="date" name="issueDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Review / Expiry Date *</label>
+            <input type="date" name="reviewDate" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Diagnosis / Clinical Context</label>
+          <input type="text" name="diagnosis" class="form-control" placeholder="Clinical condition validated in certificate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Doctor Notes</label>
+          <textarea name="doctorNotes" class="form-control" rows="2" placeholder="Clinical comments..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Upload Medical Document</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 5: Patient Self-Upload Modal -->
+  <div class="modal-backdrop" id="patient-upload-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3>Upload Renewed Certificate / Test Report</h3>
+        <button class="close-btn" onclick="App.closeModal('patient-upload-modal')">&times;</button>
+      </div>
+
+      <form id="patient-upload-doc-form">
+        <div class="form-group">
+          <label class="form-label">Document Type *</label>
+          <input type="text" name="documentType" class="form-control" placeholder="e.g. Updated Fitness Certificate, Blood Test Report" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Select File (PDF, JPG, PNG) *</label>
+          <input type="file" name="documentFile" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Issue Date *</label>
+            <input type="date" name="issueDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Review / Expiry Date *</label>
+            <input type="date" name="reviewDate" class="form-control" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 12px;">Upload Document</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 6: Medical Report Analyzer Tool Modal -->
+  <div class="modal-backdrop" id="report-analysis-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 720px;">
+      <div class="modal-header">
+        <div>
+          <h3 style="color: var(--primary-dark);"><i class="fa-solid fa-file-waveform"></i> AI Medical Report & Certificate Analyzer</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;">Extract clinical parameters, evaluate normal ranges, and get layperson explanations.</p>
+        </div>
+        <button class="close-btn" onclick="App.closeModal('report-analysis-modal')">&times;</button>
+      </div>
+
+      <form id="report-analysis-form">
+        <div class="form-group">
+          <label class="form-label">Document / Report Type</label>
+          <input type="text" name="documentType" class="form-control" value="Comprehensive Metabolic & Lipid Panel">
+        </div>
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label class="form-label">Paste Report Text or Diagnostic Parameters *</label>
+            <button type="button" class="btn btn-sm btn-outline" onclick="ChatModule.loadSampleReport()">Load Sample CBC & Lipid Panel</button>
+          </div>
+          <textarea name="reportText" id="report-input-text" class="form-control" rows="6" placeholder="Paste test parameters, values, and reference ranges..." required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Analyze Clinical Report</button>
+      </form>
+
+      <!-- Analysis Results Box -->
+      <div id="report-analysis-results" style="display: none; margin-top: 20px; padding: 20px; background: var(--bg-main); border-radius: var(--radius-md); font-size: 0.92rem; line-height: 1.6;"></div>
+    </div>
+  </div>
+
+  <!-- Modal 7: Medical Report Claude & MATLAB Analysis Modal -->
+  <div class="modal-backdrop" id="report-ai-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 840px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <div>
+          <h3 style="color: var(--primary-dark); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-brain" style="color:#d97706;"></i> Report AI Explanation & MATLAB Risk Assessment
+          </h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;">Combined Claude AI Plain-Language Explainer & MATLAB Deep Learning Serious-Situation Flag</p>
+        </div>
+        <button class="close-btn" onclick="App.closeModal('report-ai-modal')">&times;</button>
+      </div>
+
+      <div id="report-ai-modal-content">
+        <!-- Rendered dynamically by PatientModule.explainReport() -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/doctor.js"></script>
+  <script src="js/patient.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
